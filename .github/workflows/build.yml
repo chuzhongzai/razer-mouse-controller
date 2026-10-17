@@ -51,3 +51,5 @@ jobs:
             - 双击 `RazerMouse.exe` 运行，托盘出现电池图标
             - 未签名，SmartScreen 提示时选「更多信息 → 仍要运行」
             - 详细说明见仓库里的 `使用说明.md`
+
+            由 **DeepSeek-V4.1-Flash** 在 **DeepSeek Harness** 上完成 · 2026-10-17
