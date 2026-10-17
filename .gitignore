@@ -1,0 +1,18 @@
+# 编译产物
+bin/
+obj/
+*.exe
+*.pdb
+
+# 诊断用的渲染图（--shot 的输出）
+shots/
+
+# 临时日志
+*.log
+*.err
+*.tmp
+
+# Visual Studio / 编辑器
+.vs/
+*.user
+*.suo
