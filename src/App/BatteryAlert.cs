@@ -37,7 +37,7 @@ namespace RazerMouse.App
                 if (percent >= 100 && !_chargedNotified)
                 {
                     _chargedNotified = true;
-                    Raise("电量已充满", "鼠标电池已充到 100%，可以拔线了。", false);
+                    Raise("电量已充满", "鼠标电池已充到 100%，可以拔线了。", false, false);
                 }
                 return;
             }
@@ -57,14 +57,14 @@ namespace RazerMouse.App
             string text = critical
                 ? string.Format("电量只剩 {0}%，鼠标随时可能断连，请立刻充电。", percent)
                 : string.Format("电量 {0}%，低于设定的 {1}%，记得充电。", percent, _threshold);
-            Raise(critical ? "电量严重不足" : "鼠标电量偏低", text, critical);
+            Raise(critical ? "电量严重不足" : "鼠标电量偏低", text, critical, true);
         }
 
-        private void Raise(string title, string text, bool critical)
+        private void Raise(string title, string text, bool critical, bool low)
         {
             EventHandler<BatteryAlertEventArgs> handler = Raised;
             if (handler == null) return;
-            try { handler(this, new BatteryAlertEventArgs(title, text, critical)); } catch { }
+            try { handler(this, new BatteryAlertEventArgs(title, text, critical, low)); } catch { }
         }
     }
 
@@ -74,11 +74,15 @@ namespace RazerMouse.App
         public readonly string Text;
         public readonly bool Critical;
 
-        public BatteryAlertEventArgs(string title, string text, bool critical)
+        /// <summary>true 表示这是"电量不够"的告警（托盘图标要变红）；充满提示是 false。</summary>
+        public readonly bool Low;
+
+        public BatteryAlertEventArgs(string title, string text, bool critical, bool low)
         {
             Title = title;
             Text = text;
             Critical = critical;
+            Low = low;
         }
     }
 }

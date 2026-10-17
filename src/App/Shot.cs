@@ -50,14 +50,14 @@ namespace RazerMouse.App
                 panel.Hide();
             }
 
-            using (var card = new HoverCard())
+            using (var tip = new TextTip())
             {
-                card.Update(status, false);
-                card.Location = new Point(0, 0);
-                card.Show();
+                tip.Update(TrayApp.BuildTipLines(status));
+                tip.Location = new Point(0, 0);
+                tip.Show();
                 Application.DoEvents();
-                Save(card, Path.Combine(folder, "hover.png"));
-                card.Hide();
+                Save(tip, Path.Combine(folder, "tip.png"));
+                tip.Hide();
             }
 
             SaveTrayIcons(status, folder);

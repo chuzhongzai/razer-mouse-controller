@@ -51,11 +51,14 @@ namespace RazerMouse
             var alert = new BatteryAlert(20);
             int count = 0;
             string lastTitle = null;
-            alert.Raised += delegate(object s, BatteryAlertEventArgs e) { count++; lastTitle = e.Title; };
+            bool lastLow = false;
+            alert.Raised += delegate(object s, BatteryAlertEventArgs e) { count++; lastTitle = e.Title; lastLow = e.Low; };
 
             Step(alert, 3, true, false, true, "3% 断开充电 → 严重提示");
+            Expect(lastLow, "低电量提示带告警标记（Low=true，图标应变色）");
             Step(alert, 50, true, true, false, "充电中 50% 不提示");
             Step(alert, 100, true, true, true, "充到 100% 提示充满");
+            Expect(!lastLow, "充满提示不是告警（Low=false，图标不该变红）");
             Step(alert, 100, true, true, false, "再次上报 100% 不重复");
             Step(alert, 100, true, true, false, "第三次也不重复");
 

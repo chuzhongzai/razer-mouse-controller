@@ -1,4 +1,5 @@
-// 应用主体：托盘图标 + 面板 + 悬停卡 + 菜单 + 设备服务的生命周期。
+// 应用主体：托盘图标 + 面板 + 菜单 + 设备服务的生命周期。
+// 悬停提示只用系统托盘文字（NotifyIcon.Text + BuildTooltip），不再自绘卡片。
 using System;
 using System.Drawing;
 using System.Threading;
@@ -20,20 +21,16 @@ namespace RazerMouse.App
         private readonly ToolStripMenuItem _autoStartItem;
         private readonly ToolStripMenuItem _restoreItem;
         private readonly PanelForm _panel;
-        private readonly HoverCard _card;
-        private readonly System.Windows.Forms.Timer _cardTimer;
+        private readonly TextTip _tip = new TextTip();
+        private readonly System.Windows.Forms.Timer _tipTimer;
+
+        /// <summary>指针离托盘图标多远内仍算"还在悬停"（96 DPI 设计值，用时过 Theme.Z()）。</summary>
+        private const int TipAnchorRadius = 26;
 
         private EventWaitHandle _showEvent;
         private Thread _showWatcher;
         private MouseStatus _status = new MouseStatus();
-        private Point _cardAnchor;
-        private int _cardIdleMs;
-
-        /// <summary>指针离托盘图标多远内仍算"还在悬停"（像素）。</summary>
-        private const int CardAnchorRadius = 28;   // 96 DPI 设计值，用时过 Theme.Z()
-
-        /// <summary>指针离开图标与卡片多久后收起悬停卡（毫秒）。</summary>
-        private const int CardHideDelayMs = 900;
+        private Point _tipAnchor;
         private bool _alertActive;
         private bool _disposed;
         private bool _faultShown;
@@ -53,11 +50,9 @@ namespace RazerMouse.App
                 if (_autoStartItem != null) _autoStartItem.Checked = Startup.IsEnabled();
             };
 
-            _card = new HoverCard();
-
-            _cardTimer = new System.Windows.Forms.Timer();
-            _cardTimer.Interval = 100;           // 100ms 看一次指针，0.9 秒后收起
-            _cardTimer.Tick += OnCardWatch;
+            _tipTimer = new System.Windows.Forms.Timer();
+            _tipTimer.Interval = 50;    // 50ms 看一次指针：移开之后最迟 50ms 收起，肉眼就是"立刻"
+            _tipTimer.Tick += OnTipWatch;
 
             _menu = new ContextMenuStrip();
             _menu.Renderer = new ToolStripProfessionalRenderer(new DarkColorTable());
@@ -126,7 +121,7 @@ namespace RazerMouse.App
 
             _tray = new NotifyIcon();
             _tray.Icon = _icons.Get(_status, false);
-            _tray.Text = "雷蛇鼠标控制器";
+            _tray.Text = string.Empty;   // 悬停文字由自绘 TextTip 提供，这里留空避免系统再弹一个重复的气泡
             _tray.Visible = true;
             _tray.ContextMenuStrip = _menu;
             _tray.MouseClick += OnTrayClick;
@@ -163,11 +158,11 @@ namespace RazerMouse.App
         {
             Post(delegate
             {
-                _alertActive = true;
-                _tray.Icon = _icons.Get(_status, true);
+                // 只有"电量不够"才把图标染红/橙；充满提示不该让图标变红
+                _alertActive = e.Low;
+                _tray.Icon = _icons.Get(_status, _alertActive);
                 _tray.ShowBalloonTip(8000, e.Title, e.Text,
                     e.Critical ? ToolTipIcon.Error : ToolTipIcon.Warning);
-                _card.Update(_status, true);
             });
         }
 
@@ -178,23 +173,38 @@ namespace RazerMouse.App
             _status = status;
             if (status.Connected && status.LastError == null) _faultShown = false;
 
+            // 电量回升（或插上电）之后，图标要从红/橙恢复成绿，不能一直挂着告警色
+            if (_alertActive && status.Connected && status.HasBattery
+                && (status.Charging || status.BatteryPercent > _settings.LowBatteryThreshold + 10))
+            {
+                _alertActive = false;
+            }
+
             _tray.Icon = _icons.Get(status, _alertActive);
-            _tray.Text = BuildTooltip(status);
             _panel.ApplyStatus(status);
-            _card.Update(status, _alertActive);
 
             _alert.Update(status);
         }
 
-        private static string BuildTooltip(MouseStatus status)
+        /// <summary>悬停气泡的文字：第一行是设备与电量，第二行是 DPI/回报率/档位。</summary>
+        internal static string[] BuildTipLines(MouseStatus status)
         {
-            if (!status.Connected) return "雷蛇鼠标 · 未连接";
+            if (!status.Connected)
+            {
+                return new string[] { "雷蛇鼠标", "未连接，插上接收器或唤醒鼠标" };
+            }
 
             string battery = status.HasBattery
-                ? status.BatteryPercent + "%" + (status.Charging ? "（充电中）" : "")
+                ? status.BatteryPercent + "%" + (status.Charging ? " · 充电中" : "")
                 : "电量未知";
             string dpi = status.DpiX > 0 ? status.DpiX + " DPI" : "DPI 未知";
-            return "雷蛇鼠标 · " + battery + "\n" + dpi + " · " + status.PollingHz + " Hz";
+            string stage = status.ActiveStage > 0 ? " · 第 " + status.ActiveStage + " 档" : "";
+
+            return new string[]
+            {
+                "雷蛇鼠标 · " + battery,
+                dpi + " · " + status.PollingHz + " Hz" + stage
+            };
         }
 
         private void OnTrayClick(object sender, MouseEventArgs e)
@@ -203,65 +213,57 @@ namespace RazerMouse.App
             TogglePanel();
         }
 
+        // ---------------- 悬停文字气泡 ----------------
+
         private void OnTrayMouseMove(object sender, MouseEventArgs e)
         {
-            Point cursor = Cursor.Position;
+            if (_panel.Visible) return;      // 面板开着就不用气泡了
 
-            if (!_card.Visible)
+            Point cursor = Cursor.Position;
+            _tipAnchor = cursor;
+
+            if (!_tip.Visible)
             {
-                if (_panel.Visible) return;          // 面板开着就不再叠一张卡
-                _cardAnchor = cursor;
-                _cardIdleMs = 0;
-                _card.Update(_status, _alertActive);
-                _card.ShowNear(cursor);
+                _tip.Update(BuildTipLines(_status));
+                _tip.ShowAt(cursor);
             }
 
-            // 注意：指针离开托盘图标后 NotifyIcon.MouseMove 就不再触发了，
-            // 所以"移走就收起"必须靠下面的宿卫定时器判断，不能只在这里判断。
-            _cardIdleMs = 0;
-            if (!_cardTimer.Enabled) _cardTimer.Start();
+            // 指针离开图标后 NotifyIcon.MouseMove 不再触发，靠下面的定时器判断
+            if (!_tipTimer.Enabled) _tipTimer.Start();
         }
 
-        /// <summary>悬停卡宿卫：指针离开图标和卡片区域约 0.9 秒后自动收起。</summary>
-        private void OnCardWatch(object sender, EventArgs e)
+        /// <summary>指针离开图标就立刻收起（50ms 一跳，不做延迟）。</summary>
+        private void OnTipWatch(object sender, EventArgs e)
         {
-            if (!_card.Visible)
+            if (!_tip.Visible)
             {
-                _cardTimer.Stop();
+                _tipTimer.Stop();
                 return;
             }
 
             if (_panel.Visible)
             {
-                _cardTimer.Stop();
-                _card.Hide();
+                HideTip();
                 return;
             }
 
             Point cursor = Cursor.Position;
+            int radius = Theme.Z(TipAnchorRadius);
+            bool onIcon = Math.Abs(cursor.X - _tipAnchor.X) <= radius
+                       && Math.Abs(cursor.Y - _tipAnchor.Y) <= radius;
 
-            bool onCard = _card.Bounds.Contains(cursor);
-            bool onIcon = Math.Abs(cursor.X - _cardAnchor.X) <= Theme.Z(CardAnchorRadius)
-                       && Math.Abs(cursor.Y - _cardAnchor.Y) <= Theme.Z(CardAnchorRadius);
+            if (!onIcon) HideTip();
+        }
 
-            if (onCard || onIcon)
-            {
-                _cardIdleMs = 0;
-                return;
-            }
-
-            _cardIdleMs += _cardTimer.Interval;
-            if (_cardIdleMs >= CardHideDelayMs)
-            {
-                _cardTimer.Stop();
-                _card.Hide();
-            }
+        private void HideTip()
+        {
+            _tipTimer.Stop();
+            if (_tip.Visible) _tip.Hide();
         }
 
         public void ShowPanel()
         {
-            _cardTimer.Stop();
-            _card.Hide();
+            HideTip();
             _panel.ApplyStatus(_status);
             _panel.ShowAtTray();
             _alertActive = false;
@@ -282,7 +284,7 @@ namespace RazerMouse.App
             MessageBox.Show(
                 "雷蛇鼠标控制器 1.0\n\n"
                 + "原生 Win32/HID 直连，不装驱动、不联网。\n"
-                + "左键托盘图标打开面板，右键看菜单，悬停看状态。\n\n"
+                + "左键托盘图标打开面板，右键看菜单，鼠标停在图标上会显示状态文字。\n\n"
                 + "配置文件：" + Settings.FilePath,
                 "关于", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -344,9 +346,9 @@ namespace RazerMouse.App
             }
             catch { }
 
-            _cardTimer.Stop();
-            _cardTimer.Dispose();
-            _card.Dispose();
+            _tipTimer.Stop();
+            _tipTimer.Dispose();
+            _tip.Dispose();
             _panel.Dispose();
             _menu.Dispose();
 
