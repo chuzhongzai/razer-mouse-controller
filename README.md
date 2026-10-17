@@ -6,7 +6,7 @@
   <img src="docs/whale-girl.png" width="150" alt="鲸鱼娘">
 </p>
 
-<p align="center"><sub>由 <b>DeepSeek-V4.1-Flash</b> 在 <b>DeepSeek Harness</b> 上完成 · 2026-10-17</sub></p>
+<p align="center"><sub>由 <b>DeepSeek-V4.1-Flash-1017</b> 在 <b>DeepSeek Harness</b> 上完成</sub></p>
 
 给 **Razer DeathAdder V3 Pro** 写的一个 Windows 托盘小工具：**不装 Synapse、不装驱动、单文件 82 KB**，就能看电量、切 DPI 档位、改回报率、开开机自启。
 
@@ -102,13 +102,12 @@ build.ps1         csc 编译脚本
   <img src="docs/whale-girl.png" width="180" alt="鲸鱼娘">
 </p>
 
-这个工程是 **AI 写的**：从只读探测设备、写 91 字节报文层、画深色界面，到 4K/DPI 适配、修 bug、发版，全部由 **DeepSeek-V4.1-Flash** 在 **DeepSeek Harness** 上完成（2026-10-17）。
+这个工程是 **AI 写的**：从只读探测设备、写 91 字节报文层、画深色界面，到 4K/DPI 适配、修 bug、发版，全部由 **DeepSeek-V4.1-Flash-1017** 在 **DeepSeek Harness** 上完成。
 
 | | |
 |---|---|
-| 模型 | DeepSeek-V4.1-Flash |
+| 模型 | DeepSeek-V4.1-Flash-1017（1017 是模型版本号，不是日期） |
 | 运行环境 | DeepSeek Harness（Windows 沙箱、实时终端与文件通道） |
-| 完成日期 | 2026 年 10 月 17 日 |
 | 协作方式 | 人定需求与验收，AI 探测协议、写代码、跑真机验证 |
 | 鲸鱼娘形象 | 图片来源：[aigengtu.com/zh/meme/1050](https://aigengtu.com/zh/meme/1050)（仅作项目吉祥物） |
 

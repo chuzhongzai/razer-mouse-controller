@@ -285,8 +285,8 @@ namespace RazerMouse.App
                 "雷蛇鼠标控制器 1.0\n\n"
                 + "原生 Win32/HID 直连，不装驱动、不联网。\n"
                 + "左键托盘图标打开面板，右键看菜单，鼠标停在图标上会显示状态文字。\n\n"
-                + "由 DeepSeek-V4.1-Flash 在 DeepSeek Harness 上完成\n"
-                + "2026-10-17 · github.com/chuzhongzai/razer-mouse-controller\n\n"
+                + "由 DeepSeek-V4.1-Flash-1017 在 DeepSeek Harness 上完成\n"
+                + "github.com/chuzhongzai/razer-mouse-controller\n\n"
                 + "配置文件：" + Settings.FilePath,
                 "关于", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
