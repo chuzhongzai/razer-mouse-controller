@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using RazerMouse.Native;
 using RazerMouse.Protocol;
 
 namespace RazerMouse.App
@@ -55,6 +56,14 @@ namespace RazerMouse.App
 
         private DateTime _nextConnect = DateTime.MinValue;
         private DateTime _nextPoll = DateTime.MaxValue;
+        private DateTime _lastPollUtc = DateTime.MinValue;
+
+        // 轮询节奏：放电 60 秒一次，充电中 30 秒一次（充电时电量约每分钟涨 1%，30 秒已经够及时）。
+        private const int DischargePollSeconds = 60;
+        private const int ChargingPollSeconds = 30;
+        // 用户 2 秒内有过键鼠输入就跳过这一轮；但连续操作时最多推迟 5 分钟，低电量提醒不能被拖太久。
+        private const int BusyGraceMs = 2000;
+        private const double MaxDeferSeconds = 300;
 
         // 启动时的原始设置，供「恢复上次」与退出还原使用
         private bool _initialCaptured;
@@ -281,6 +290,7 @@ namespace RazerMouse.App
                 status.LastError = null;
                 Publish(status);
 
+                _lastPollUtc = DateTime.UtcNow;
                 CaptureInitial(device);
                 _nextPoll = DateTime.UtcNow.AddSeconds(PollSeconds());
             }
@@ -324,6 +334,18 @@ namespace RazerMouse.App
         {
             MouseDevice device = _device;
             if (device == null) return;
+
+            // 用户手正在动的时候先不问设备：一次电量查询是两条同步 Feature Report，
+            // 每条都要等固件回 60 ms。没必要在人家正用鼠标的时候占这 130 ms ——
+            // 停手 2 秒内补上；要是一直在操作，最多憋 5 分钟也必须读一次。
+            bool busy = IdleTime.Milliseconds() < BusyGraceMs;
+            bool overdue = (DateTime.UtcNow - _lastPollUtc).TotalSeconds >= MaxDeferSeconds;
+            if (busy && !overdue)
+            {
+                _nextPoll = DateTime.UtcNow.AddSeconds(2);
+                return;
+            }
+
             _nextPoll = DateTime.UtcNow.AddSeconds(PollSeconds());
 
             MouseStatus status = Status;
@@ -338,6 +360,7 @@ namespace RazerMouse.App
                 status.Charging = charging;
                 status.LastError = null;
                 status.UpdatedUtc = DateTime.UtcNow;
+                _lastPollUtc = status.UpdatedUtc;
                 Publish(status);
             }
             catch (Exception ex) { HandleFailure(ex); }
@@ -347,8 +370,8 @@ namespace RazerMouse.App
         {
             MouseStatus status = Status;
             if (!status.Connected) return 2;
-            // 充电中 15 秒（拔线能较快反映），放电 30 秒（插线最坏 30 秒内看到）
-            return status.Charging ? 15 : 30;
+            // 充电中 30 秒（拔线能较快反映），放电 60 秒（电量掉得很慢，插线最坏 60 秒内看到）
+            return status.Charging ? ChargingPollSeconds : DischargePollSeconds;
         }
 
         /// <summary>读全套状态（约 400ms，只在连接后与写入后调用）。</summary>

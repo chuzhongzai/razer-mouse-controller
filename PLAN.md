@@ -145,7 +145,7 @@ razer-mouse-controller/
 | **Phase 0 · 探测** ✅ 已完成（2026-10-17） | 只读命令全量实测 35 条 + DPI 档位读命令确认 | `research/phase0_readonly_probe.md` 命令表；**档位可读已确认**（`0x04/0x86`，400/800/1600/3200/6400，当前第 4 档） |
 | **Phase 1 · 协议内核** ✅ 已完成（2026-10-17） | `HidApi` / `RazerReport` / `MouseDevice` / `Commands` + `--selftest` | `bin\RazerMouseTest.exe --selftest --write-test`：7 项读全对，DPI / 回报率 / 档位表三条写通道写回读回一致 |
 | **Phase 2 · 界面** ✅ 已完成（2026-10-17） | 托盘图标 + 弹出面板（中文、深色、自绘）+ 悬停文字气泡 | 点图标出面板、再点收起；档位/回报率改动即刻下发并读回；`--shot` 可离线渲染 `shots\panel.png`、`shots\tip.png`、`shots\tray-states.png` |
-| **Phase 3 · 后台** ✅ 已完成（2026-10-17） | 60s/充电 15s 轮询、低电量回差提示、热插拔 2s 重连、单实例唤醒、开机自启、退出还原 | `--alerttest` 12 项全绿；第二个实例 96 ms 内唤醒并退出；拔 dongle 图标转灰、插回自动恢复 |
+| **Phase 3 · 后台** ✅ 已完成（2026-10-17） | 60s/充电 30s 轮询（手在动时让路、停手补读）、低电量回差提示、热插拔 2s 重连、单实例唤醒、开机自启、退出还原 | `--alerttest` 12 项全绿；第二个实例 96 ms 内唤醒并退出；拔 dongle 图标转灰、插回自动恢复 |
 | **Phase 4 · 打包** ✅ 已完成（2026-10-17） | `build.ps1`（系统 csc，免安装）、`assets\app.ico`、`使用说明.md` | 单文件 `bin\RazerMouse.exe`（约 78 KB）拷到任意目录双击即用 |
 
 预估工作量：Phase 1 约 300 行，Phase 2 约 700 行，Phase 3 约 250 行，Phase 4 约 100 行 —— 合计 ~1400 行 C#。
