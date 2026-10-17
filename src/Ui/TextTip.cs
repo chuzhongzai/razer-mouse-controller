@@ -1,6 +1,7 @@
 // 悬停提示：只有文字的小气泡（没有电量条、没有按钮），出现和消失都是即时的。
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace RazerMouse.Ui
@@ -74,11 +75,34 @@ namespace RazerMouse.Ui
             int x = cursor.X - Width / 2;
             int y = cursor.Y - Height - gap;
             if (y < work.Top) y = cursor.Y + gap;
+
+            // 光标在任务栏上时，气泡底边会压进任务栏，被任务栏盖住（任务栏也是置顶窗口）。
+            // 工作区已经排除了任务栏，这里把气泡整体夹回工作区内。
+            if (y + Height > work.Bottom) y = work.Bottom - Height;
+            if (y < work.Top) y = work.Top;
+
             x = Math.Max(work.Left + Theme.Z(4), Math.Min(x, work.Right - Width - Theme.Z(4)));
 
             Location = new Point(x, y);
             if (!Visible) Show();
-            else Invalidate();
+            BringToTop();   // 每次出现都重新顶到置顶层，避免第一次被任务栏压住
+            Invalidate();
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+            int x, int y, int cx, int cy, uint flags);
+
+        private static readonly IntPtr HwndTopmost = new IntPtr(-1);
+        private const uint SwpNoSize = 0x0001;
+        private const uint SwpNoMove = 0x0002;
+        private const uint SwpNoActivate = 0x0010;
+
+        /// <summary>把窗口插到置顶窗口组的最前面（不激活、不改变位置大小）。</summary>
+        private void BringToTop()
+        {
+            if (!IsHandleCreated) return;
+            SetWindowPos(Handle, HwndTopmost, 0, 0, 0, 0, SwpNoMove | SwpNoSize | SwpNoActivate);
         }
 
         protected override void OnPaint(PaintEventArgs e)

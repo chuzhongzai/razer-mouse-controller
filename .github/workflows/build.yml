@@ -1,0 +1,53 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: 取出源码
+        uses: actions/checkout@v4
+
+      - name: 编译（系统自带 csc，不需要 SDK）
+        shell: pwsh
+        run: |
+          ./build.ps1
+          if (!(Test-Path 'bin\RazerMouse.exe')) { throw '编译产物不存在' }
+          Get-Item 'bin\RazerMouse.exe', 'bin\RazerMouseTest.exe' |
+            Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: 低电量判定自检（纯逻辑，不需要鼠标）
+        shell: pwsh
+        run: .\bin\RazerMouseTest.exe --alerttest
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: RazerMouse-exe
+          path: bin/RazerMouse.exe
+          if-no-files-found: error
+
+      - name: 发布 Release（仅打 v* 标签时）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bin/RazerMouse.exe
+          generate_release_notes: true
+          body: |
+            雷蛇鼠标控制器（Razer DeathAdder V3 Pro 托盘控制器）
+
+            单文件、免安装、不需要 Synapse 和 .NET SDK。
+
+            - 双击 `RazerMouse.exe` 运行，托盘出现电池图标
+            - 未签名，SmartScreen 提示时选「更多信息 → 仍要运行」
+            - 详细说明见仓库里的 `使用说明.md`

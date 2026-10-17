@@ -12,7 +12,19 @@ namespace RazerMouse.App
 
         public static string ExecutablePath
         {
-            get { return System.Windows.Forms.Application.ExecutablePath; }
+            get
+            {
+                string path = System.Windows.Forms.Application.ExecutablePath;
+
+                // 自检用的 RazerMouseTest.exe 和主程序放在一起，别把自检程序写进开机启动项。
+                string name = System.IO.Path.GetFileName(path);
+                if (string.Equals(name, "RazerMouseTest.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    string main = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(path), "RazerMouse.exe");
+                    if (System.IO.File.Exists(main)) return main;
+                }
+                return path;
+            }
         }
 
         public static bool IsEnabled()
