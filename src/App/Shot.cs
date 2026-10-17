@@ -18,6 +18,8 @@ namespace RazerMouse.App
             try { Directory.CreateDirectory(folder); }
             catch (Exception ex) { Console.WriteLine("无法创建目录：" + ex.Message); return 1; }
 
+            Ui.Theme.InitDpi();   // 截出来的图要和屏幕上一样清晰
+
             var settings = Settings.Load();
             var service = new MouseService(settings);
             service.Start();

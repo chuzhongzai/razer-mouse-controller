@@ -19,16 +19,16 @@ namespace RazerMouse.Ui
             _min = min;
             _max = max;
             DrawBorder = true;
-            Radius = 10;
-            ClientSize = new Size(268, 148);
-            Padding = new Padding(16);
+            Radius = Theme.Z(10);
+            ClientSize = new Size(Theme.Z(268), Theme.Z(148));
+            Padding = new Padding(Theme.Z(16));
 
             var caption = new Label();
             caption.Text = title;
             caption.Font = Theme.Title;
             caption.ForeColor = Theme.Text;
             caption.AutoSize = false;
-            caption.Bounds = new Rectangle(16, 12, 236, 24);
+            caption.Bounds = new Rectangle(Theme.Z(16), Theme.Z(12), Theme.Z(236), Theme.Z(24));
             Controls.Add(caption);
 
             var field = new Label();
@@ -36,7 +36,7 @@ namespace RazerMouse.Ui
             field.Font = Theme.Small;
             field.ForeColor = Theme.Muted;
             field.AutoSize = false;
-            field.Bounds = new Rectangle(16, 42, 236, 18);
+            field.Bounds = new Rectangle(Theme.Z(16), Theme.Z(42), Theme.Z(236), Theme.Z(18));
             Controls.Add(field);
 
             _input = new TextBox();
@@ -45,7 +45,7 @@ namespace RazerMouse.Ui
             _input.ForeColor = Theme.Text;
             _input.BackColor = Theme.Card;
             _input.BorderStyle = BorderStyle.FixedSingle;
-            _input.Bounds = new Rectangle(16, 64, 236, 28);
+            _input.Bounds = new Rectangle(Theme.Z(16), Theme.Z(64), Theme.Z(236), Theme.Z(28));
             _input.SelectAll();
             Controls.Add(_input);
 
@@ -53,14 +53,14 @@ namespace RazerMouse.Ui
             _hint.Font = Theme.Small;
             _hint.ForeColor = Theme.Muted;
             _hint.AutoSize = false;
-            _hint.Bounds = new Rectangle(16, 96, 236, 18);
+            _hint.Bounds = new Rectangle(Theme.Z(16), Theme.Z(96), Theme.Z(236), Theme.Z(18));
             _hint.Text = string.Format("{0} – {1}", min, max);
             Controls.Add(_hint);
 
             var ok = new Chip();
             ok.Text = "确定";
             ok.Selected = true;
-            ok.Bounds = new Rectangle(148, 116, 100, 28);
+            ok.Bounds = new Rectangle(Theme.Z(148), Theme.Z(116), Theme.Z(100), Theme.Z(28));
             ok.Click += delegate { Commit(); };
             Controls.Add(ok);
 
@@ -68,7 +68,7 @@ namespace RazerMouse.Ui
             cancel.Text = "取消";
             cancel.Ghost = true;
             cancel.TextColor = Theme.Muted;
-            cancel.Bounds = new Rectangle(40, 116, 100, 28);
+            cancel.Bounds = new Rectangle(Theme.Z(40), Theme.Z(116), Theme.Z(100), Theme.Z(28));
             cancel.Click += delegate { DialogResult = DialogResult.Cancel; Close(); };
             Controls.Add(cancel);
 

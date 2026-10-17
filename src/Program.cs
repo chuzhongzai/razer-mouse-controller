@@ -34,6 +34,7 @@ namespace RazerMouse
 
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
+                RazerMouse.Ui.Theme.InitDpi();   // 必须在建窗体之前：4K/200% 下按真实像素绘制
                 Application.ThreadException += delegate(object sender, System.Threading.ThreadExceptionEventArgs e)
                 {
                     ShowFatal(e.Exception);

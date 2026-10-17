@@ -23,7 +23,7 @@ namespace RazerMouse.Ui
             BackColor = Theme.Background;
             Cursor = Cursors.Hand;
             Font = Theme.Chip;
-            Radius = 7;
+            Radius = Theme.Z(7);
         }
 
         public int Radius { get; set; }
@@ -60,9 +60,9 @@ namespace RazerMouse.Ui
                 Theme.Fill(g, bounds, Radius, back);
 
             if (_selected)
-                Theme.Stroke(g, bounds, Radius, Theme.Accent, 1.4f);
+                Theme.Stroke(g, bounds, Radius, Theme.Accent, Theme.Zf(1.4f));
             else if (_ghost && _hover)
-                Theme.Stroke(g, bounds, Radius, Theme.Border, 1f);
+                Theme.Stroke(g, bounds, Radius, Theme.Border, Theme.Zf(1f));
 
             Color color = TextColor;
             if (color.IsEmpty) color = _selected ? Theme.Accent : Theme.Text;

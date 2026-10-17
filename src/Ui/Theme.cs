@@ -19,7 +19,36 @@ namespace RazerMouse.Ui
         public static readonly Color Warning = Color.FromArgb(0xF2, 0xB0, 0x1E);
         public static readonly Color Danger = Color.FromArgb(0xE5, 0x48, 0x4D);
 
+        /// <summary>屏幕缩放系数（96 DPI = 1，200% 缩放 = 2）。界面按 96 DPI 设计，绘制时统一乘它。</summary>
+        public static float DpiScale = 1f;
+
         private static readonly string Family = PickFamily();
+
+        /// <summary>在创建任何窗体之前调用，读一次系统 DPI。</summary>
+        public static void InitDpi()
+        {
+            try
+            {
+                using (Graphics g = Graphics.FromHwnd(IntPtr.Zero))
+                {
+                    DpiScale = g.DpiX / 96f;
+                }
+            }
+            catch { DpiScale = 1f; }
+            if (DpiScale < 1f) DpiScale = 1f;
+        }
+
+        /// <summary>把 96 DPI 下的设计尺寸换成当前屏幕的像素。</summary>
+        public static int Z(int value)
+        {
+            return (int)Math.Round(value * DpiScale);
+        }
+
+        /// <summary>同上，给线宽/笔宽这类浮点用。</summary>
+        public static float Zf(float value)
+        {
+            return value * DpiScale;
+        }
 
         public static readonly Font Title = new Font(Family, 10.5f, FontStyle.Bold);
         public static readonly Font Body = new Font(Family, 9f, FontStyle.Regular);

@@ -30,7 +30,7 @@ namespace RazerMouse.App
         private int _cardIdleMs;
 
         /// <summary>指针离托盘图标多远内仍算"还在悬停"（像素）。</summary>
-        private const int CardAnchorRadius = 28;
+        private const int CardAnchorRadius = 28;   // 96 DPI 设计值，用时过 Theme.Z()
 
         /// <summary>指针离开图标与卡片多久后收起悬停卡（毫秒）。</summary>
         private const int CardHideDelayMs = 900;
@@ -241,8 +241,8 @@ namespace RazerMouse.App
             Point cursor = Cursor.Position;
 
             bool onCard = _card.Bounds.Contains(cursor);
-            bool onIcon = Math.Abs(cursor.X - _cardAnchor.X) <= CardAnchorRadius
-                       && Math.Abs(cursor.Y - _cardAnchor.Y) <= CardAnchorRadius;
+            bool onIcon = Math.Abs(cursor.X - _cardAnchor.X) <= Theme.Z(CardAnchorRadius)
+                       && Math.Abs(cursor.Y - _cardAnchor.Y) <= Theme.Z(CardAnchorRadius);
 
             if (onCard || onIcon)
             {
@@ -266,6 +266,7 @@ namespace RazerMouse.App
             _panel.ShowAtTray();
             _alertActive = false;
             _tray.Icon = _icons.Get(_status, false);
+            _service.RefreshAll();   // 弹出即重读一次，面板最多等 0.4 秒变新鲜
         }
 
         private void TogglePanel()

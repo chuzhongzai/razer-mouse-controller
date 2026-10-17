@@ -8,6 +8,7 @@ namespace RazerMouse.Ui
 {
     internal sealed class PanelForm : DarkForm
     {
+        // 下面这些数字都是 96 DPI 下的设计尺寸，实际像素一律用 Theme.Z() 换算。
         private const int Pad = 16;
         private const int PanelWidth = 360;
         private const int PanelHeight = 352;
@@ -43,35 +44,35 @@ namespace RazerMouse.Ui
             _settings = settings;
 
             DrawBorder = true;
-            Radius = 12;
+            Radius = Theme.Z(12);
             TopMost = true;
-            ClientSize = new Size(PanelWidth, PanelHeight);
+            ClientSize = new Size(Theme.Z(PanelWidth), Theme.Z(PanelHeight));
             Text = "雷蛇鼠标控制器";
 
             BuildStageChips();
             BuildPollChips();
 
             _storeChip = new Chip();
-            _storeChip.Bounds = new Rectangle(Pad, 252, 168, 32);
+            _storeChip.Bounds = new Rectangle(Theme.Z(Pad), Theme.Z(252), Theme.Z(168), Theme.Z(32));
             _storeChip.Font = Theme.Body;
             _storeChip.Click += delegate { ToggleStore(); };
             Controls.Add(_storeChip);
 
             _restoreChip = new Chip();
-            _restoreChip.Bounds = new Rectangle(Pad + 176, 252, 168, 32);
+            _restoreChip.Bounds = new Rectangle(Theme.Z(Pad + 176), Theme.Z(252), Theme.Z(168), Theme.Z(32));
             _restoreChip.Font = Theme.Body;
             _restoreChip.Text = "恢复到启动时";
             _restoreChip.Click += delegate { RestoreAsked(); };
             Controls.Add(_restoreChip);
 
             _autostartChip = new Chip();
-            _autostartChip.Bounds = new Rectangle(Pad, 292, 118, 30);
+            _autostartChip.Bounds = new Rectangle(Theme.Z(Pad), Theme.Z(292), Theme.Z(118), Theme.Z(30));
             _autostartChip.Font = Theme.Body;
             _autostartChip.Click += delegate { ToggleAutostart(); };
             Controls.Add(_autostartChip);
 
             _refreshChip = new Chip();
-            _refreshChip.Bounds = new Rectangle(Pad + 126, 292, 96, 30);
+            _refreshChip.Bounds = new Rectangle(Theme.Z(Pad + 126), Theme.Z(292), Theme.Z(96), Theme.Z(30));
             _refreshChip.Font = Theme.Body;
             _refreshChip.Ghost = true;
             _refreshChip.Text = "立即刷新";
@@ -80,7 +81,7 @@ namespace RazerMouse.Ui
             Controls.Add(_refreshChip);
 
             _exitChip = new Chip();
-            _exitChip.Bounds = new Rectangle(PanelWidth - Pad - 98, 292, 98, 30);
+            _exitChip.Bounds = new Rectangle(Theme.Z(PanelWidth - Pad - 98), Theme.Z(292), Theme.Z(98), Theme.Z(30));
             _exitChip.Font = Theme.Body;
             _exitChip.Ghost = true;
             _exitChip.Text = "退出程序";
@@ -100,12 +101,12 @@ namespace RazerMouse.Ui
 
         private void BuildStageChips()
         {
-            const int gap = 7;
-            int width = (PanelWidth - Pad * 2 - gap * 4) / 5;
+            int gap = Theme.Z(7);
+            int width = (Theme.Z(PanelWidth) - Theme.Z(Pad) * 2 - gap * 4) / 5;
             for (int i = 0; i < 5; i++)
             {
                 var chip = new Chip();
-                chip.Bounds = new Rectangle(Pad + i * (width + gap), 124, width, 40);
+                chip.Bounds = new Rectangle(Theme.Z(Pad) + i * (width + gap), Theme.Z(124), width, Theme.Z(40));
                 chip.Text = "--";
                 chip.Enabled = false;
                 int index = i;
@@ -120,12 +121,12 @@ namespace RazerMouse.Ui
         private void BuildPollChips()
         {
             int[] rates = { 125, 500, 1000 };
-            const int gap = 8;
-            int width = (PanelWidth - Pad * 2 - gap * 2) / 3;
+            int gap = Theme.Z(8);
+            int width = (Theme.Z(PanelWidth) - Theme.Z(Pad) * 2 - gap * 2) / 3;
             for (int i = 0; i < rates.Length; i++)
             {
                 var chip = new Chip();
-                chip.Bounds = new Rectangle(Pad + i * (width + gap), 196, width, 34);
+                chip.Bounds = new Rectangle(Theme.Z(Pad) + i * (width + gap), Theme.Z(196), width, Theme.Z(34));
                 int hz = rates[i];
                 chip.Text = hz + " Hz";
                 chip.Click += delegate { _service.SetPolling(hz); };
@@ -284,17 +285,22 @@ namespace RazerMouse.Ui
                 location = new Point(_settings.PanelX, _settings.PanelY);
                 var probe = new Rectangle(location, Size);
                 if (!work.Contains(probe))
-                    location = new Point(work.Right - Width - 12, work.Bottom - Height - 12);
+                    location = new Point(work.Right - Width - Theme.Z(12), work.Bottom - Height - Theme.Z(12));
             }
             else
             {
-                location = new Point(work.Right - Width - 12, work.Bottom - Height - 12);
+                location = new Point(work.Right - Width - Theme.Z(12), work.Bottom - Height - Theme.Z(12));
             }
 
             Location = location;
             Show();
+            // 只写 TopMost = true（构造函数里那次）在这个进程里没有落到 WS_EX_TOPMOST 上，
+            // 实测窗口会被压在别的全屏窗口后面；这里再置一次，验证过确实生效。
+            TopMost = false;
+            TopMost = true;
             Activate();
             BringToFront();
+            Invalidate();
         }
 
         protected override void OnDeactivate(EventArgs e)
@@ -319,40 +325,45 @@ namespace RazerMouse.Ui
             Graphics g = e.Graphics;
             Theme.Setup(g);
 
+            int pad = Theme.Z(Pad);
+            int width = ClientSize.Width;
             bool online = _status.Connected;
             bool busy = _status.Busy;
 
             // 标题
             Theme.DrawText(g, "DeathAdder V3 Pro", Theme.Title, Theme.Text,
-                new Rectangle(Pad, 10, 210, 22), TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                new Rectangle(pad, Theme.Z(10), Theme.Z(210), Theme.Z(22)),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
 
             // 右上角状态
             string stateText = busy ? (_status.BusyText.Length > 0 ? _status.BusyText : "处理中…")
                 : (online ? (_status.Charging ? "充电中" : "已连接") : "未连接");
             Color stateColor = busy ? Theme.Warning : (online ? Theme.Accent : Theme.Danger);
-            var stateRect = new Rectangle(PanelWidth - Pad - 120, 10, 120, 22);
+            var stateRect = new Rectangle(width - pad - Theme.Z(120), Theme.Z(10), Theme.Z(120), Theme.Z(22));
             Theme.DrawText(g, stateText, Theme.Small, stateColor, stateRect,
                 TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
 
             using (var dot = new SolidBrush(stateColor))
             {
                 Size textSize = TextRenderer.MeasureText(stateText, Theme.Small);
-                int dotX = stateRect.Right - textSize.Width - 12;
-                g.FillEllipse(dot, dotX, 18, 6, 6);
+                int dotX = stateRect.Right - textSize.Width - Theme.Z(12);
+                g.FillEllipse(dot, dotX, Theme.Z(18), Theme.Z(6), Theme.Z(6));
             }
 
             // 电量大字
             string percentText = _status.HasBattery ? _status.BatteryPercent + "%" : "--";
             Color levelColor = Theme.LevelColor(_status.BatteryPercent, _status.Charging);
             Theme.DrawText(g, percentText, Theme.Battery, online ? levelColor : Theme.Muted,
-                new Rectangle(Pad - 3, 36, 120, 42), TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                new Rectangle(pad - Theme.Z(3), Theme.Z(36), Theme.Z(120), Theme.Z(42)),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
 
             // 电量说明
             string caption = !online ? "正在寻找设备…"
                 : (!_status.HasBattery ? "读不到电量"
                     : (_status.Charging ? "正在充电" : "使用电池"));
             Theme.DrawText(g, caption, Theme.Body, online ? Theme.Text : Theme.Muted,
-                new Rectangle(Pad + 108, 40, 140, 20), TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                new Rectangle(pad + Theme.Z(108), Theme.Z(40), Theme.Z(140), Theme.Z(20)),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
 
             string updated = _status.LastError != null
                 ? _status.LastError
@@ -361,42 +372,44 @@ namespace RazerMouse.Ui
                     : "更新于 " + _status.UpdatedUtc.ToLocalTime().ToString("HH:mm:ss"));
             Theme.DrawText(g, updated, Theme.Small,
                 _status.LastError != null ? Theme.Warning : Theme.Muted,
-                new Rectangle(Pad + 108, 60, PanelWidth - Pad * 2 - 108, 18),
+                new Rectangle(pad + Theme.Z(108), Theme.Z(60), width - pad * 2 - Theme.Z(108), Theme.Z(18)),
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
             // 电量条
-            var track = new Rectangle(Pad, 88, PanelWidth - Pad * 2, 8);
-            Theme.Fill(g, track, 4, Theme.Card);
+            var track = new Rectangle(pad, Theme.Z(88), width - pad * 2, Theme.Z(8));
+            Theme.Fill(g, track, Theme.Z(4), Theme.Card);
             if (_status.HasBattery && _status.BatteryPercent > 0)
             {
                 int fillWidth = (int)Math.Round(track.Width * (_status.BatteryPercent / 100.0));
-                if (fillWidth < 8) fillWidth = 8;
-                Theme.Fill(g, new Rectangle(track.X, track.Y, fillWidth, track.Height), 4,
+                if (fillWidth < Theme.Z(8)) fillWidth = Theme.Z(8);
+                Theme.Fill(g, new Rectangle(track.X, track.Y, fillWidth, track.Height), Theme.Z(4),
                     online ? levelColor : Theme.Muted);
             }
 
             // 分区标题
             Theme.DrawText(g, "DPI 档位", Theme.Small, Theme.Muted,
-                new Rectangle(Pad, 104, 120, 18), TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                new Rectangle(pad, Theme.Z(104), Theme.Z(120), Theme.Z(18)),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
             Theme.DrawText(g, "单击切换 · 双击改数值", Theme.Small, Theme.Muted,
-                new Rectangle(PanelWidth - Pad - 200, 104, 200, 18),
+                new Rectangle(width - pad - Theme.Z(200), Theme.Z(104), Theme.Z(200), Theme.Z(18)),
                 TextFormatFlags.Right | TextFormatFlags.VerticalCenter);
 
             Theme.DrawText(g, "回报率", Theme.Small, Theme.Muted,
-                new Rectangle(Pad, 176, 120, 18), TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+                new Rectangle(pad, Theme.Z(176), Theme.Z(120), Theme.Z(18)),
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
 
             // 分隔线 / 离线提示
             if (online)
             {
-                using (var pen = new Pen(Theme.Border, 1f))
+                using (var pen = new Pen(Theme.Border, Theme.Zf(1f)))
                 {
-                    g.DrawLine(pen, Pad, 240, PanelWidth - Pad, 240);
+                    g.DrawLine(pen, pad, Theme.Z(240), width - pad, Theme.Z(240));
                 }
             }
             else
             {
                 Theme.DrawText(g, "设备未连接：插好接收器或唤醒鼠标，每 2 秒自动重试",
-                    Theme.Small, Theme.Danger, new Rectangle(Pad, 232, PanelWidth - Pad * 2, 18),
+                    Theme.Small, Theme.Danger, new Rectangle(pad, Theme.Z(232), width - pad * 2, Theme.Z(18)),
                     TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             }
         }

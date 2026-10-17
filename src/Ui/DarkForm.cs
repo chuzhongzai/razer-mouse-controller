@@ -12,6 +12,7 @@ namespace RazerMouse.Ui
             FormBorderStyle = FormBorderStyle.None;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.Manual;
+            AutoScaleMode = AutoScaleMode.None;   // 尺寸全部由 Theme.Z() 自己按 DPI 换算，不要让 WinForms 再自动缩放一次
             BackColor = Theme.Background;
             ForeColor = Theme.Text;
             Font = Theme.Body;
@@ -52,7 +53,7 @@ namespace RazerMouse.Ui
             if (!DrawBorder) return;
             Theme.Setup(e.Graphics);
             Color color = BorderColor.IsEmpty ? Theme.Border : BorderColor;
-            Theme.Stroke(e.Graphics, new Rectangle(0, 0, Width - 1, Height - 1), Radius, color, 1f);
+            Theme.Stroke(e.Graphics, new Rectangle(0, 0, Width - 1, Height - 1), Radius, color, Theme.Zf(1f));
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)

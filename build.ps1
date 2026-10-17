@@ -1,4 +1,4 @@
-﻿# 编译脚本：用系统自带的 csc.exe，产物不需要任何运行时安装。
+# 编译脚本：用系统自带的 csc.exe，产物不需要任何运行时安装。
 #   pwsh -File build.ps1            # 只编译
 #   pwsh -File build.ps1 -Run       # 编译后跑一次只读自检
 #   pwsh -File build.ps1 -Launch    # 编译后直接启动托盘程序
@@ -33,6 +33,9 @@ $common = @(
 
 $icon = Join-Path $root 'assets\app.ico'
 if (Test-Path $icon) { $common += "/win32icon:$icon" }
+
+$manifest = Join-Path $root 'src\app.manifest'
+if (Test-Path $manifest) { $common += "/win32manifest:$manifest" }
 
 $gui = Join-Path $bin 'RazerMouse.exe'
 $console = Join-Path $bin 'RazerMouseTest.exe'

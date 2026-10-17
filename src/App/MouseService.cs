@@ -347,7 +347,8 @@ namespace RazerMouse.App
         {
             MouseStatus status = Status;
             if (!status.Connected) return 2;
-            return status.Charging ? 15 : 60;
+            // 充电中 15 秒（拔线能较快反映），放电 30 秒（插线最坏 30 秒内看到）
+            return status.Charging ? 15 : 30;
         }
 
         /// <summary>读全套状态（约 400ms，只在连接后与写入后调用）。</summary>
