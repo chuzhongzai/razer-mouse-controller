@@ -1,5 +1,5 @@
 // 应用主体：托盘图标 + 面板 + 菜单 + 设备服务的生命周期。
-// 悬停提示只用系统托盘文字（NotifyIcon.Text + BuildTooltip），不再自绘卡片。
+// 悬停提示是自绘的纯文字气泡（TextTip），指针一离开就收起。
 using System;
 using System.Drawing;
 using System.Threading;
@@ -27,10 +27,14 @@ namespace RazerMouse.App
         /// <summary>指针离托盘图标多远内仍算"还在悬停"（96 DPI 设计值，用时过 Theme.Z()）。</summary>
         private const int TipAnchorRadius = 26;
 
+        /// <summary>气泡显示后，指针一直不动、也没有新的悬停事件，最多挂这么久就收掉。</summary>
+        private const int TipMaxIdleMs = 5000;
+
         private EventWaitHandle _showEvent;
         private Thread _showWatcher;
         private MouseStatus _status = new MouseStatus();
         private Point _tipAnchor;
+        private int _tipMoveTick;
         private bool _alertActive;
         private bool _disposed;
         private bool _faultShown;
@@ -215,18 +219,33 @@ namespace RazerMouse.App
 
         // ---------------- 悬停文字气泡 ----------------
 
+        private static bool Near(Point a, Point b, int radius)
+        {
+            return Math.Abs(a.X - b.X) <= radius && Math.Abs(a.Y - b.Y) <= radius;
+        }
+
         private void OnTrayMouseMove(object sender, MouseEventArgs e)
         {
             if (_panel.Visible) return;      // 面板开着就不用气泡了
 
             Point cursor = Cursor.Position;
-            _tipAnchor = cursor;
+            int radius = Theme.Z(TipAnchorRadius);
+            _tipMoveTick = Environment.TickCount;
 
-            if (!_tip.Visible)
+            if (_tip.Visible)
             {
-                _tip.Update(BuildTipLines(_status));
-                _tip.ShowAt(cursor);
+                // 已经在显示：只跟随图标附近的微小移动，别让一次假事件把锚点带到别处
+                if (Near(cursor, _tipAnchor, radius)) _tipAnchor = cursor;
+                return;
             }
+
+            // 真正的悬停才认。指针既不在托盘附近、也不在上次悬停的位置，就当它是外壳乱发的，
+            // 否则会出现「鼠标早就移开了，过一会儿气泡自己又冒出来」。
+            if (!Near(cursor, _tipAnchor, radius) && !HoverZone.Contains(cursor)) return;
+
+            _tipAnchor = cursor;
+            _tip.Update(BuildTipLines(_status));
+            _tip.ShowAt(cursor);
 
             // 指针离开图标后 NotifyIcon.MouseMove 不再触发，靠下面的定时器判断
             if (!_tipTimer.Enabled) _tipTimer.Start();
@@ -252,7 +271,11 @@ namespace RazerMouse.App
             bool onIcon = Math.Abs(cursor.X - _tipAnchor.X) <= radius
                        && Math.Abs(cursor.Y - _tipAnchor.Y) <= radius;
 
-            if (!onIcon) HideTip();
+            // 万一还有漏网的事件把气泡顶了出来（指针其实早就停着不动），最多挂 5 秒就自己收掉，
+            // 不会出现"气泡一直杵在那儿"的情况。
+            bool stale = Environment.TickCount - _tipMoveTick > TipMaxIdleMs;
+
+            if (!onIcon || stale) HideTip();
         }
 
         private void HideTip()

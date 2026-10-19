@@ -19,6 +19,7 @@ namespace RazerMouse
             if (HasArg(args, "--alerttest")) return AlertTest.Run(args);
             if (HasArg(args, "--selftest")) return SelfTest.Run(args);
             if (HasArg(args, "--shot")) return Shot.Run(GetValue(args, "--shot") ?? "shots");
+            if (HasArg(args, "--hoverzone")) return HoverZoneCommand.Run(GetValue(args, "--hoverzone"));
             if (HasArg(args, "--help") || HasArg(args, "-h") || HasArg(args, "/?")) { PrintHelp(); return 0; }
 
             bool minimized = HasArg(args, "--minimized");
@@ -87,6 +88,7 @@ namespace RazerMouse
             Console.WriteLine("  直接运行：启动托盘程序（--minimized 只驻留托盘）");
             Console.WriteLine("  --selftest [--write-test]：命令行自检，读设备状态");
             Console.WriteLine("  --shot <目录>：把面板与图标渲染成 PNG（诊断用）");
+            Console.WriteLine("  --hoverzone [x,y]：查看坐标是否算「托盘附近」（诊断悬停气泡用）");
         }
 
         private static void ShowFatal(Exception ex)
