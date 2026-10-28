@@ -17,6 +17,7 @@ namespace RazerMouse
             if (HasArg(args, "--autostart")) return AutostartCommand.Run(GetValue(args, "--autostart"));
             if (HasArg(args, "--make-icon")) return IconMaker.Run(GetValue(args, "--make-icon") ?? @"assets\app.ico");
             if (HasArg(args, "--alerttest")) return AlertTest.Run(args);
+            if (HasArg(args, "--batprobe")) return SelfTest.Run(args);
             if (HasArg(args, "--selftest")) return SelfTest.Run(args);
             if (HasArg(args, "--shot")) return Shot.Run(GetValue(args, "--shot") ?? "shots");
             if (HasArg(args, "--hoverzone")) return HoverZoneCommand.Run(GetValue(args, "--hoverzone"));

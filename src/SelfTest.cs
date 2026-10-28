@@ -11,6 +11,8 @@ namespace RazerMouse
         {
             bool writeTest = Array.IndexOf(args, "--write-test") >= 0;
 
+            if (Array.IndexOf(args, "--batprobe") >= 0) return RunBatteryProbe(args);
+
             try
             {
                 using (MouseDevice device = MouseDevice.Open())
@@ -70,6 +72,69 @@ namespace RazerMouse
                 Console.WriteLine("错误: " + ex.Message);
                 return 1;
             }
+        }
+
+        /// <summary>
+        /// --batprobe [次数] [间隔毫秒]：连续采样电量，把原始回包整个打出来。
+        /// 用来判断"电量读数抖动"到底是设备回的值在变，还是我们解析错了。
+        /// </summary>
+        private static int RunBatteryProbe(string[] args)
+        {
+            int count = ReadIntArg(args, "--batprobe", 60);
+            int intervalMs = ReadIntArg(args, "--interval", 2000);
+
+            try
+            {
+                using (MouseDevice device = MouseDevice.Open())
+                {
+                    Console.WriteLine("采样 " + count + " 次，间隔 " + intervalMs + " ms");
+                    Console.WriteLine("序号  时间        raw(0x07/0x80)  args0 args1  percent  充电args  charging");
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        string time = DateTime.Now.ToString("HH:mm:ss.fff");
+                        try
+                        {
+                            byte[] batteryReply = device.Ask(0x07, 0x80, 0x02, null);
+                            byte[] batteryArgs = RazerReport.Args(batteryReply, 2);
+                            byte[] chargingReply = device.Ask(0x07, 0x84, 0x02, null);
+                            byte[] chargingArgs = RazerReport.Args(chargingReply, 2);
+
+                            Console.WriteLine(string.Format("{0,4}  {1}  {2,3}            {3,3}  {4,3}  {5,3}%     {6,3}  {7,3}  {8}",
+                                i, time,
+                                batteryArgs[1], batteryArgs[0], batteryArgs[1],
+                                MouseCommands.ToPercent(batteryArgs[1],
+                                    MouseCommands.AllowsPercentScale(device.Pid)),
+                                chargingArgs[0], chargingArgs[1],
+                                chargingArgs[1] != 0 ? "是" : "否"));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine(string.Format("{0,4}  {1}  ❌ {2}", i, time, ex.Message));
+                        }
+
+                        if (i + 1 < count) System.Threading.Thread.Sleep(intervalMs);
+                    }
+                }
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("错误: " + ex.Message);
+                return 1;
+            }
+        }
+
+        private static int ReadIntArg(string[] args, string name, int fallback)
+        {
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (!string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) continue;
+                int value;
+                if (i + 1 < args.Length && int.TryParse(args[i + 1], out value)) return value;
+                return fallback;
+            }
+            return fallback;
         }
 
         /// <summary>写"当前值"（等效空操作），再读回校验写入通道是否可用。</summary>

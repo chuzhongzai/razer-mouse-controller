@@ -1,6 +1,7 @@
 // --alerttest：不用真机，用一串模拟电量验证低电量提示的判定与回差。
 using System;
 using RazerMouse.App;
+using RazerMouse.Protocol;
 
 namespace RazerMouse
 {
@@ -16,6 +17,7 @@ namespace RazerMouse
             DischargePath();
             ChargePath();
             DisconnectedPath();
+            ScalePath();
 
             Console.WriteLine();
             Console.WriteLine(_failed == 0 ? "全部通过 ✅" : "有 " + _failed + " 项不符合预期 ❌");
@@ -85,6 +87,53 @@ namespace RazerMouse
             status.HasBattery = false;
             alert.Update(status);
             Expect(count == 0, "没有电量信息时不应提示");
+        }
+
+        /// <summary>电量刻度换算：DeathAdder V3 Pro 回的是 0–255，不能把小于 100 的原值当成百分数。</summary>
+        private static void ScalePath()
+        {
+            Console.WriteLine();
+            Console.WriteLine("—— 电量刻度换算 ——");
+
+            const bool noGuess = false;   // 刻度确定的型号
+            const bool guess = true;      // 老设备，≤100 当百分数
+
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(255, noGuess) == 100, "255 → 100%");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(189, noGuess) == 74, "189 → 74%");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(187, noGuess) == 73, "187 → 73%");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(101, noGuess) == 40, "101 → 40%");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(100, noGuess) == 39,
+                "100 → 39%（旧逻辑会当成 100%，这就是「电量反弹」的根源）");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(57, noGuess) == 22, "57 → 22%");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(1, noGuess) == 0, "1 → 0%");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(0, noGuess) == 0, "0 → 0%");
+
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(57, guess) == 57, "老设备 57 → 57%（当百分数）");
+            Expect(RazerMouse.Protocol.MouseCommands.ToPercent(255, guess) == 100, "老设备 255 → 100%");
+
+            ushort daPid = MouseDevice.DeathAdderV3ProPids[1];
+            Expect(!RazerMouse.Protocol.MouseCommands.AllowsPercentScale(daPid),
+                "DeathAdder V3 Pro 不走「≤100 当百分数」的猜测");
+            Expect(RazerMouse.Protocol.MouseCommands.AllowsPercentScale(0x007A),
+                "未知型号（Viper 等）仍走猜测");
+
+            SmoothPath();
+        }
+
+        /// <summary>抗反弹：放电过程中电量不该往上跳，但插上电或大幅跳变要如实显示。</summary>
+        private static void SmoothPath()
+        {
+            Console.WriteLine();
+            Console.WriteLine("—— 抗反弹平滑 ——");
+
+            Expect(BatterySmoother.Adjust(-1, false, 57, false) == 57, "第一次读到 57% 直接用");
+            Expect(BatterySmoother.Adjust(57, false, 55, false) == 55, "掉电 57 → 55 正常显示");
+            Expect(BatterySmoother.Adjust(57, false, 60, false) == 57, "放电中反弹 +3 被压住");
+            Expect(BatterySmoother.Adjust(57, false, 62, false) == 57, "放电中反弹 +5（临界）也被压住");
+            Expect(BatterySmoother.Adjust(57, false, 63, false) == 63, "回升 +6 超出容差，如实显示");
+            Expect(BatterySmoother.Adjust(57, false, 90, false) == 90, "大幅跳变（重新校准）如实显示");
+            Expect(BatterySmoother.Adjust(57, false, 58, true) == 58, "插上电后回升正常显示");
+            Expect(BatterySmoother.Adjust(57, true, 56, false) == 56, "刚拔线那一刻的新值直接用");
         }
 
         private static void Step(BatteryAlert alert, int percent, bool expectRaised, string note)

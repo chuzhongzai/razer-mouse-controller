@@ -71,6 +71,10 @@ namespace RazerMouse.App
         private DpiStages _initialStages;
         private int _initialPolling;
 
+        // 电量显示的历史值，用于压住放电过程中的小反弹（见 BatterySmoother）
+        private int _lastPercent = -1;
+        private bool _lastCharging;
+
         /// <summary>在后台线程触发。订阅方负责 marshal 到 UI 线程。</summary>
         public event EventHandler<MouseStatus> StatusChanged;
 
@@ -354,10 +358,7 @@ namespace RazerMouse.App
                 BatteryInfo battery = MouseCommands.ReadBattery(device);
                 bool charging = MouseCommands.ReadCharging(device);
                 status.Connected = true;
-                status.HasBattery = true;
-                status.BatteryRaw = battery.Raw;
-                status.BatteryPercent = battery.Percent;
-                status.Charging = charging;
+                ApplyBattery(status, battery, charging);
                 status.LastError = null;
                 status.UpdatedUtc = DateTime.UtcNow;
                 _lastPollUtc = status.UpdatedUtc;
@@ -381,10 +382,7 @@ namespace RazerMouse.App
             if (string.IsNullOrEmpty(status.Firmware)) status.Firmware = MouseCommands.ReadFirmware(device);
 
             BatteryInfo battery = MouseCommands.ReadBattery(device);
-            status.HasBattery = true;
-            status.BatteryRaw = battery.Raw;
-            status.BatteryPercent = battery.Percent;
-            status.Charging = MouseCommands.ReadCharging(device);
+            ApplyBattery(status, battery, MouseCommands.ReadCharging(device));
 
             DpiStage dpi = MouseCommands.ReadDpi(device, false);
             status.DpiX = dpi.X;
@@ -401,6 +399,22 @@ namespace RazerMouse.App
             status.Busy = false;
             status.BusyText = "";
             status.UpdatedUtc = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// 把读到的电量写进状态。百分比过一遍 BatterySmoother：放电时设备偶尔会把读数
+        /// 往回弹几个点（电压回落/重新估算），显示上压住，免得看起来像在充电。
+        /// </summary>
+        private void ApplyBattery(MouseStatus status, BatteryInfo battery, bool charging)
+        {
+            int percent = BatterySmoother.Adjust(_lastPercent, _lastCharging, battery.Percent, charging);
+            _lastPercent = percent;
+            _lastCharging = charging;
+
+            status.HasBattery = true;
+            status.BatteryRaw = battery.Raw;
+            status.BatteryPercent = percent;
+            status.Charging = charging;
         }
 
         /// <summary>写入动作的统一外壳：置忙 → 执行 → 读回 → 发布。</summary>

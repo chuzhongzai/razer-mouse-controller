@@ -44,7 +44,7 @@ namespace RazerMouse.Protocol
 
             var info = new BatteryInfo();
             info.Raw = args[1];
-            info.Percent = ToPercent(args[1]);
+            info.Percent = ToPercent(args[1], AllowsPercentScale(device.Pid));
             return info;
         }
 
@@ -55,13 +55,33 @@ namespace RazerMouse.Protocol
             return RazerReport.Args(reply, 2)[1] != 0;
         }
 
-        /// <summary>老设备回 0–100，新设备回 0–255；≤100 视为百分数最稳（README §5）。</summary>
+        /// <summary>
+        /// 这个型号的电量会不会直接回 0–100（老设备）。
+        /// DeathAdder V3 Pro 系列实测回 0–255：充满时读到 255，所以刻度是确定的，不能按"≤100 当百分数"猜。
+        /// </summary>
+        public static bool AllowsPercentScale(ushort pid)
+        {
+            return Array.IndexOf(MouseDevice.DeathAdderV3ProPids, pid) < 0;
+        }
+
+        /// <summary>老设备回 0–100，新设备回 0–255；≤100 视为百分数（只对刻度未知的型号生效）。</summary>
         public static int ToPercent(int raw)
         {
+            return ToPercent(raw, true);
+        }
+
+        /// <param name="allowPercentScale">
+        /// true = 型号不确定，≤100 当作百分数（老设备）；false = 刻度确定是 0–255，一律按 x/255 折算。
+        /// </param>
+        public static int ToPercent(int raw, bool allowPercentScale)
+        {
             if (raw <= 0) return 0;
-            if (raw <= 100) return raw;
+            if (allowPercentScale && raw <= 100) return raw;   // 老设备直接回百分数
+
+            // 0–255 → 0–100，四舍五入；255 正好 100%
             int pct = (raw * 100 + 127) / 255;
-            return pct > 100 ? 100 : pct;
+            if (pct > 100) pct = 100;
+            return pct;
         }
 
         // ---------- DPI ----------
